@@ -2,41 +2,28 @@
 
 class the_ultimate_cache_cache {
 
-    var $collected = '';
-    var $dir;
-    var $server;
+    protected $collected = '';
 
-    public function ultimate_cache_cache($config, $server) {
-        return $this->__construct($config, $server);
+    protected $backend;
+    protected $server;
+
+    public function __construct($backend, $server) {
+        $this->backend     = $backend;
+        $this->server      = $server;
     }
 
-    public function __construct($config, $server) {
-        if (!isset($config['dir']) || !$config['dir'])
-            throw new Exception("Cache dir not set");
-
-        if (!file_exists($config['dir']))
-            throw new Exception("Cache dir does not exists");
-
-        $this->dir = $config['dir'];
-        $this->server = $server;
-    }
-
-    protected function current_uri() {
-        // rules apply
-        return @$this->server['REQUEST_URI'];
-    }
-
-    protected function cache_filename() {
-        $filename = @$this->server['REQUEST_METHOD'] . "|" . $this->current_uri();
-        return rtrim($this->dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . md5($filename);
+    protected function get_key() {
+        // TODO: apply rules (strip QS if needed)
+        // TODO: apply rules (cache with QS but ignore QS param order)
+        return @$this->server['REQUEST_METHOD'] . "|" . @$this->server['REQUEST_URI'];
     }
 
     protected function request_can_be_cached() {
-        // rules apply
         if (preg_match('/wordpress_logged_in_/', @$this->server['HTTP_COOKIE'])) {
             return false;
         }
-        // allow to cache POST
+        // TODO: apply rules
+        // TODO: allow to cache POST
         return preg_match('/^(GET|HEAD)$/i', @$this->server['REQUEST_METHOD']);
     }
 
@@ -49,9 +36,7 @@ class the_ultimate_cache_cache {
         if (!$this->request_can_be_cached())
             return false;
 
-        $filename = $this->cache_filename();
-        if (file_exists($filename)) {
-            $serialized = file_get_contents($filename);
+        if (false !== ($serialized = $this->backend->read($this->get_key()))) {
             if ($cached = @unserialize($serialized)) {
                 http_response_code($cached['code']);
                 foreach ($cached['headers'] as $header) {
@@ -61,7 +46,7 @@ class the_ultimate_cache_cache {
                 echo $cached['body'];
                 exit;
             }
-            @unlink($filename);
+            $this->backend->delete($filename);
         }
         @ob_start(array($this, 'collect'));
         register_shutdown_function(array($this, 'shutdown'));
@@ -83,7 +68,11 @@ class the_ultimate_cache_cache {
                 'headers' => headers_list(),
                 'body' => $this->collected,
             );
-            file_put_contents($this->cache_filename(), serialize($cached), LOCK_EX);
+            $this->backend->store($this->get_key(), serialize($cached));
         }
+    }
+
+    public function invalidate($urls) {
+        return true;
     }
 }
