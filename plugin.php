@@ -231,7 +231,7 @@ class the_ultimate_cache_plugin {
 
     public function page_page_rules() {
         echo "<p>Add new rule:</p>";
-        echo "<p>Url: <input type=\"text\"> <select><option>Do not cache</option><option>Never</option></select><button class=\"button\">Add</button></p>";
+        echo "<p>Url: <input type=\"text\"> <select><option>Do not cache</option><option>Cache forever</option></select><button class=\"button\">Add</button></p>";
     }
 
     public function action_clear_cache_full()
