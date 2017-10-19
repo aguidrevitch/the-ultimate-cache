@@ -17,16 +17,17 @@ final class BackendTest extends TestCase
         $this->rrmdir($this->cacheDir);
     }
 
-    function rrmdir($dir) {
+    function rrmdir($dir)
+    {
         if (is_dir($dir)) {
             @chmod($dir, 0755);
             $objects = scandir($dir);
             foreach ($objects as $object) {
                 if ($object != "." && $object != "..") {
-                    if (is_dir($dir."/".$object))
-                        $this->rrmdir($dir."/".$object);
+                    if (is_dir($dir . "/" . $object))
+                        $this->rrmdir($dir . "/" . $object);
                     else
-                        unlink($dir."/".$object);
+                        unlink($dir . "/" . $object);
                 }
             }
             rmdir($dir);
@@ -86,21 +87,33 @@ final class BackendTest extends TestCase
         $key = 'GET|/';
         $filename = $this->callMethod($backend, 'cache_filename', array($key));
         $this->assertFileNotExists($filename);
-        $this->assertEquals(strlen("ultimate-cache-write"), $backend->store($key, "ultimate-cache-write"));
+        $this->assertEquals(8 + strlen("ultimate-cache-write"), $backend->store($key, "ultimate-cache-write"));
         $this->assertFileExists($filename);
-        $this->assertEquals(file_get_contents($filename), "ultimate-cache-write");
+        $this->assertEquals(pack("Q", -1) . "ultimate-cache-write", file_get_contents($filename));
     }
 
     public function testReadSuccess()
     {
         @mkdir($this->cacheDir . '/fc/39/', 0755, true);
-        file_put_contents($this->cacheDir . '/fc/39/fc39497565cf59c6e3054b1bb500ec91', "ultimate-cache-read");
+        file_put_contents($this->cacheDir . '/fc/39/fc39497565cf59c6e3054b1bb500ec91', pack("Q", time() + 100) . "ultimate-cache-read");
 
         $backend = new the_ultimate_cache_backend(array(
             'dir' => $this->cacheDir
         ));
 
         $this->assertEquals("ultimate-cache-read", $backend->retrieve('GET|/'));
+    }
+
+    public function testTTL()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+        $key = 'GET|/';
+        $backend->store($key, "ultimate-cache-ttl", 1);
+        $this->assertEquals("ultimate-cache-ttl", $backend->retrieve($key));
+        sleep(2);
+        $this->assertFalse($backend->retrieve($key));
     }
 
 }

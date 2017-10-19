@@ -95,14 +95,15 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
     {
         $dir = rtrim($this->dir, DIRECTORY_SEPARATOR);
         $file = md5($key);
-        return  $dir . DIRECTORY_SEPARATOR . substr($file, 0, 2) . DIRECTORY_SEPARATOR . substr($file, 2, 2) . DIRECTORY_SEPARATOR . $file;
+        return $dir . DIRECTORY_SEPARATOR . substr($file, 0, 2) . DIRECTORY_SEPARATOR . substr($file, 2, 2) . DIRECTORY_SEPARATOR . $file;
     }
 
-    public function store($key, $data)
+    public function store($key, $data, $ttl = -1)
     {
         $filename = $this->cache_filename($key);
         if (false !== @mkdir(dirname($filename), 0755, true)) {
-            return file_put_contents($filename, $data, LOCK_EX);
+            // hope it will still be around after 2038, so storing time as 64bit
+            return file_put_contents($filename, pack("Q", (int)$ttl > 0 ? time() + (int)$ttl : -1) . $data, LOCK_EX);
         }
         return false;
     }
@@ -111,7 +112,18 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
     {
         $filename = $this->cache_filename($key);
         if (file_exists($filename)) {
-            return file_get_contents($this->cache_filename($key));
+            if (false !== ($handle = fopen($filename, "rb"))) {
+                $meta = unpack("Qtimestamp", fread($handle, 8));
+                if ($meta['timestamp'] < time()) {
+                    return false;
+                }
+                $data = '';
+                while (!feof($handle)) {
+                    $data .= fread($handle, 65536);
+                }
+                fclose($handle);
+                return $data;
+            }
         }
         return false;
     }
