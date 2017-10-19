@@ -1,6 +1,7 @@
 <?php
 
-class the_ultimate_cache_backend_base {
+class the_ultimate_cache_backend_base
+{
 
     const ERROR = 'error';
     const DEBUG = 'debug';
@@ -74,34 +75,49 @@ class the_ultimate_cache_backend_base {
 
 }
 
-class the_ultimate_cache_backend extends the_ultimate_cache_backend_base {
+class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
+{
 
     protected $dir;
 
-    public function __construct($config) {
+    public function __construct($config)
+    {
         if (!isset($config['dir']) || !$config['dir'])
             throw new Exception("Cache dir not set");
 
-        if (!file_exists($config['dir']))
-            throw new Exception("Cache dir does not exists");
+        if (!is_dir($config['dir']) || !is_writeable($config['dir']))
+            throw new Exception(sprintf("Cache dir %s does not exists or is not writeable", $config['dir']));
 
         $this->dir = $config['dir'];
     }
 
-   protected function cache_filename($key) {
-        return rtrim($this->dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . md5($key);
+    protected function cache_filename($key)
+    {
+        $dir = rtrim($this->dir, DIRECTORY_SEPARATOR);
+        $file = md5($key);
+        return  $dir . DIRECTORY_SEPARATOR . substr($file, 0, 2) . DIRECTORY_SEPARATOR . substr($file, 2, 2) . DIRECTORY_SEPARATOR . $file;
     }
 
-
-    public function store($key, $data) {
-        return file_put_contents($this->cache_filename($key), $data, LOCK_EX);
+    public function store($key, $data)
+    {
+        $filename = $this->cache_filename($key);
+        if (false !== @mkdir(dirname($filename), 0755, true)) {
+            return file_put_contents($filename, $data, LOCK_EX);
+        }
+        return false;
     }
 
-    public function read($key) {
-        return file_get_contents($this->cache_filename($key));
+    public function retrieve($key)
+    {
+        $filename = $this->cache_filename($key);
+        if (file_exists($filename)) {
+            return file_get_contents($this->cache_filename($key));
+        }
+        return false;
     }
 
-    public function invalidate($keys = array()) {
+    public function invalidate($keys = array())
+    {
         // to be implemented
         return false;
     }
