@@ -203,4 +203,36 @@ final class BackendTest extends TestCase
         }
     }
 
+    public function testMassDeleteOutOfSync()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+
+        $items = [];
+        foreach (range(0, 9999) as $i) {
+            $items[] = md5((string)$i);
+        }
+
+        foreach ($items as $item) {
+            $this->assertEquals(32 + 4, $backend->store($item, $item, 100));
+        }
+        foreach (range(0, 255) as $i) {
+            $this->rrmdir($this->cacheDir . '/' . sprintf('%02s', dechex($i)));
+        }
+        foreach ($items as $item) {
+            $this->assertEquals(32 + 4, $backend->store($item, $item, 100));
+        }
+
+        $this->assertEquals(584 * 2, $backend->invalidate(['e*']));
+        foreach ($items as $item) {
+            $result = $backend->retrieve($item);
+            if (substr($item, 0, 1) === 'e') {
+                $this->assertFalse($result);
+            } else {
+                $this->assertEquals($item, $result);
+            }
+        }
+    }
+
 }
