@@ -8,6 +8,7 @@ final class BackendTest extends TestCase
     public function setUp()
     {
         parent::setUp();
+//        $this->rrmdir($this->cacheDir);
         @mkdir($this->cacheDir);
     }
 
@@ -87,21 +88,24 @@ final class BackendTest extends TestCase
         $key = 'GET|/';
         $filename = $this->callMethod($backend, 'cache_filename', array($key));
         $this->assertFileNotExists($filename);
-        $this->assertEquals(8 + strlen("ultimate-cache-write"), $backend->store($key, "ultimate-cache-write"));
+        $this->assertEquals(4 + strlen("ultimate-cache-write"), $backend->store($key, "ultimate-cache-write"));
         $this->assertFileExists($filename);
-        $this->assertEquals(pack("Q", -1) . "ultimate-cache-write", file_get_contents($filename));
+        $this->assertEquals(pack("L", 0) . "ultimate-cache-write", file_get_contents($filename));
     }
 
-    public function testReadSuccess()
+    public function testStoreOverwriteSuccess()
     {
-        @mkdir($this->cacheDir . '/fc/39/', 0755, true);
-        file_put_contents($this->cacheDir . '/fc/39/fc39497565cf59c6e3054b1bb500ec91', pack("Q", time() + 100) . "ultimate-cache-read");
-
         $backend = new the_ultimate_cache_backend(array(
             'dir' => $this->cacheDir
         ));
-
-        $this->assertEquals("ultimate-cache-read", $backend->retrieve('GET|/'));
+        $key = 'GET|/';
+        $filename = $this->callMethod($backend, 'cache_filename', array($key));
+        $this->assertFileNotExists($filename);
+        $this->assertEquals(4 + strlen("ultimate-cache-write"), $backend->store($key, "ultimate-cache-write"));
+        $this->assertFileExists($filename);
+        $this->assertEquals(4 + strlen("ultimate-cache-overwrite"), $backend->store($key, "ultimate-cache-overwrite"));
+        $this->assertFileExists($filename);
+        $this->assertEquals(pack("L", 0) . "ultimate-cache-overwrite", file_get_contents($filename));
     }
 
     public function testTTL()
@@ -114,6 +118,77 @@ final class BackendTest extends TestCase
         $this->assertEquals("ultimate-cache-ttl", $backend->retrieve($key));
         sleep(2);
         $this->assertFalse($backend->retrieve($key));
+    }
+
+    public function testDeleteSingle()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+        $key = 'GET|/single';
+        $backend->store($key, "ultimate-cache-single", 100);
+        $backend->store('GET|/single2', "ultimate-cache-single2", 100);
+        $this->assertEquals("ultimate-cache-single", $backend->retrieve($key));
+        $this->assertEquals(1, $backend->invalidate(["GET|/single"]));
+        $this->assertFalse($backend->retrieve($key));
+    }
+
+    public function testDeletePattern()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+        $backend->store('GET|/single', "ultimate-cache-single", 100);
+        $backend->store('GET|/signin', "ultimate-cache-signin", 100);
+        $this->assertEquals("ultimate-cache-single", $backend->retrieve('GET|/single'));
+        $this->assertEquals("ultimate-cache-signin", $backend->retrieve('GET|/signin'));
+        $this->assertEquals(2, $backend->invalidate(["GET|/si*"]));
+        $this->assertFalse($backend->retrieve('GET|/single'));
+        $this->assertFalse($backend->retrieve('GET|/signin'));
+    }
+
+    public function testDeletePattern2()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+        $backend->store('GET|/single', "ultimate-cache-single", 100);
+        $backend->store('GET|/signin', "ultimate-cache-signin", 100);
+        $this->assertEquals("ultimate-cache-single", $backend->retrieve('GET|/single'));
+        $this->assertEquals("ultimate-cache-signin", $backend->retrieve('GET|/signin'));
+        $this->assertEquals(1, $backend->invalidate(["GET|/sin*"]));
+        $this->assertFalse($backend->retrieve('GET|/single'));
+        $this->assertEquals("ultimate-cache-signin", $backend->retrieve('GET|/signin'));
+    }
+
+    public function testMassDeletePattern()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+
+        $items = [];
+        foreach (range(0, 9999) as $i) {
+            $items[] = md5((string)$i);
+        }
+
+        foreach ($items as $item) {
+            $this->assertEquals(32 + 4, $backend->store($item, $item, 100));
+        }
+
+        foreach ($items as $i => $item) {
+            $this->assertEquals($item, $backend->retrieve($item));
+        }
+
+        $this->assertEquals(584, $backend->invalidate(['e*']));
+        foreach ($items as $item) {
+            $result = $backend->retrieve($item);
+            if (substr($item, 0, 1) === 'e') {
+                $this->assertFalse($result);
+            } else {
+                $this->assertEquals($item, $result);
+            }
+        }
     }
 
 }
