@@ -119,10 +119,14 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
         return false;
     }
 
-    public function store($key, $data, $ttl = -1)
+    public function store($key, $data, $ttl = null)
     {
         $filename = $this->cache_filename($key);
-        $expires = (int)$ttl > 0 ? time() + (int)$ttl : -1;
+
+        $expires = isset($ttl)
+            ? time() + (int)$ttl
+            : PHP_INT_MAX;
+
         $position = false;
 
         if (file_exists($filename)) {

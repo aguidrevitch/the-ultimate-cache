@@ -120,6 +120,18 @@ final class BackendTest extends TestCase
         $this->assertFalse($backend->retrieve($key));
     }
 
+    public function testTTLInfiniteByDefault()
+    {
+        $backend = new the_ultimate_cache_backend(array(
+            'dir' => $this->cacheDir
+        ));
+        $key = 'GET|/';
+        $backend->store($key, "ultimate-cache-ttl");
+        $this->assertEquals("ultimate-cache-ttl", $backend->retrieve($key));
+        sleep(2);
+        $this->assertEquals("ultimate-cache-ttl", $backend->retrieve($key));
+    }
+
     public function testDeleteSingle()
     {
         $backend = new the_ultimate_cache_backend(array(

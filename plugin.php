@@ -38,18 +38,20 @@ class the_ultimate_cache_plugin {
         } else {
             // not admin area
             $config = array(
-                'dir' => WP_CONTENT_DIR
+                'dir' => WP_CONTENT_DIR . '/ultimate-cache'
             );
 
+            require(__DIR__ . '/backend.php');
             require(__DIR__ . '/cache.php');
-            $cache = new the_ultimate_cache_cache($config, $_SERVER);
+            $backend = new the_ultimate_cache_backend($config);
+            $cache = new the_ultimate_cache_cache($backend, $_SERVER);
             add_action('plugins_loaded', array($cache, 'handler'), -1);
         }
     }
 
     public function on_backend_event($event, $message)
     {
-        if ($event == ultimate_cache_backend::ERROR)
+        if ($event == the_ultimate_cache_backend::ERROR)
             $this->failed = true;
 
         $message = sprintf("[%s] [%s]\n%s\n", date('Y-m-d H:i:sO'), strtoupper($event), $message);

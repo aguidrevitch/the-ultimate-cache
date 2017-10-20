@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Class the_ultimate_cache_cache
+ * @property the_ultimate_cache_backend $backend
+ */
 class the_ultimate_cache_cache {
 
     protected $collected = '';
@@ -36,17 +40,15 @@ class the_ultimate_cache_cache {
         if (!$this->request_can_be_cached())
             return false;
 
-        if (false !== ($serialized = $this->backend->read($this->get_key()))) {
+        if (false !== ($serialized = $this->backend->retrieve($this->get_key()))) {
             if ($cached = @unserialize($serialized)) {
                 http_response_code($cached['code']);
                 foreach ($cached['headers'] as $header) {
                     header($header);
                 };
-                header();
                 echo $cached['body'];
                 exit;
             }
-            $this->backend->delete($filename);
         }
         @ob_start(array($this, 'collect'));
         register_shutdown_function(array($this, 'shutdown'));
@@ -63,16 +65,17 @@ class the_ultimate_cache_cache {
             $cached = array(
                 'time' => time(),
                 'method' => @$this->server['REQUEST_METHOD'],
-                'uri' => $this->current_uri(),
+                'uri' => $this->get_key(),
                 'code' => http_response_code(),
                 'headers' => headers_list(),
                 'body' => $this->collected,
             );
             $this->backend->store($this->get_key(), serialize($cached));
         }
+        echo $this->collected;
     }
 
     public function invalidate($urls) {
-        return true;
+        return $this->backend->invalidate($urls);
     }
 }
