@@ -135,11 +135,11 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
                 $position = $this->verify_position_in_index($meta['position']);
             }
         } elseif (is_dir(dirname($filename)) || (false !== @mkdir(dirname($filename), 0755, true))) {
-            // hope it will still be around after 2038, so storing time as 64bit
             $position = $this->index_add_expires($key, $expires);
         }
 
         if (false !== $position) {
+            // hope it will still be around after 2038, so storing time as 64bit
             $meta = pack("L", $position);
             // file_put_contents might fail so the
             // index does not reflect the real state of the filesystem
@@ -209,7 +209,7 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
     public function index_update_expires($position, $expires)
     {
         if (false !== ($handle = fopen($this->index_filename(), "cb"))) {
-            // TODO: test lock index while updaring existing key
+            // TODO: test lock index while updating existing key
             if (false !== flock($handle, LOCK_EX | LOCK_NB)) {
                 if (false !== fseek($handle, $position, SEEK_SET)) {
                     $header = $this->index_make_header($expires);
@@ -256,7 +256,7 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
 
         if (false !== ($handle = fopen($this->index_filename(), "r+b"))) {
             // TODO: test lock index while storing new key
-            if (false !== flock($handle, LOCK_EX)) {
+            if (false !== flock($handle, LOCK_EX | LOCK_NB)) {
                 $rekeys = array();
                 foreach ($keys as $key) {
                     if (substr($key, -1) == '*') {
