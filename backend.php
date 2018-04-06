@@ -2,9 +2,10 @@
 
 class the_ultimate_cache_backend_base
 {
-    const PREFIX = 'DRWN';
-    const ERROR = 'error';
-    const DEBUG = 'debug';
+    const PREFIX  = 'DRWN';
+    const ERROR   = 'error';
+    const WARNING = 'warning';
+    const DEBUG   = 'debug';
 
     private $_events = array();
 
@@ -198,7 +199,7 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
                     }
                     flock($handle, LOCK_UN);
                 } else {
-                    $this->emit("Unable to lock index file for read");
+                    $this->emit(self::WARNING, "Unable to lock index file for read");
                 }
                 fclose($handle);
             }
@@ -303,7 +304,7 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
                 if ($data) {
                     flock($handle, LOCK_UN);
                     fclose($handle);
-                    $this->emit("Cache index invalid, dropping");
+                    $this->emit(self::WARNING, "Cache index invalid, dropping");
                     @unlink($this->index_filename());
                     return false;
                 }
@@ -313,9 +314,9 @@ class the_ultimate_cache_backend extends the_ultimate_cache_backend_base
                     if (false !== fseek($handle, $pos, SEEK_SET)) {
                         if (false === fwrite($handle, $header)) {
                             if ($return_urls)
-                                $this->emit("Unable to invalidate url " . $urls[$i]);
+                                $this->emit(self::WARNING, "Unable to invalidate url " . $urls[$i]);
                             else
-                                $this->emit("Unable to invalidate record at position " . $pos);
+                                $this->emit(self::WARNING, "Unable to invalidate record at position " . $pos);
                         }
                     }
                 }
